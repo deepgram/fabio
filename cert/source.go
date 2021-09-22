@@ -104,7 +104,7 @@ func TLSConfig(src Source, strictMatch bool, minVersion, maxVersion uint16, ciph
 		MinVersion:   minVersion,
 		MaxVersion:   maxVersion,
 		CipherSuites: cipherSuites,
-		NextProtos:   []string{"h2", "http/1.1"},
+		NextProtos:   []string{"http/1.1"},
 		GetCertificate: func(clientHello *tls.ClientHelloInfo) (cert *tls.Certificate, err error) {
 			cert, err = getCertificate(store.certstore(), clientHello, strictMatch)
 			if cert != nil {
