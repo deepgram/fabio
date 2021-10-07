@@ -58,7 +58,7 @@ func newWSHandler(host string, dial dialFunc) http.Handler {
 		// read the initial response to check whether we get an HTTP/1.1 101 ... response
 		// to determine whether the handshake worked.
 		b := make([]byte, 1024)
-		if err := out.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		if err := out.SetReadDeadline(time.Now().Add(12 * time.Second)); err != nil {
 			log.Printf("[ERROR] Error setting read timeout for %s: %s", r.URL, err)
 			http.Error(w, "error setting read timeout", http.StatusInternalServerError)
 			return
