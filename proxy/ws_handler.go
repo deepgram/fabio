@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/fabiolb/fabio/metrics"
+	"github.com/fabiolb/fabio/uuid"
 )
 
 // conn measures the number of open web socket connections
 var conn = metrics.DefaultRegistry.GetCounter("ws.conn")
+var RFC3339Millis = "2006-01-02T15:04:05.000Z07:00"
 
 type dialFunc func(network, address string) (net.Conn, error)
 
@@ -23,9 +25,11 @@ type dialFunc func(network, address string) (net.Conn, error)
 // between the client and server.
 func newWSHandler(host string, dial dialFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rid := uuid.NewUUID()
+		downstreamStart := time.Now()
+		log.Printf("[INFO] (DG) %s received downstream request at %s", rid, downstreamStart.Format(RFC3339Millis))
 		conn.Inc(1)
 		defer func() { conn.Inc(-1) }()
-
 		hj, ok := w.(http.Hijacker)
 		if !ok {
 			http.Error(w, "not a hijacker", http.StatusInternalServerError)
@@ -54,6 +58,8 @@ func newWSHandler(host string, dial dialFunc) http.Handler {
 			http.Error(w, "error copying request", http.StatusInternalServerError)
 			return
 		}
+		upstreamStart := time.Now()
+		log.Printf("[INFO] (DG) %s sent upstream request at %s", rid, upstreamStart.Format(RFC3339Millis))
 
 		// read the initial response to check whether we get an HTTP/1.1 101 ... response
 		// to determine whether the handshake worked.
@@ -70,6 +76,8 @@ func newWSHandler(host string, dial dialFunc) http.Handler {
 			http.Error(w, "error reading handshake", http.StatusInternalServerError)
 			return
 		}
+		upstreamEnd := time.Now()
+		log.Printf("[INFO] (DG) %s received upstream response at %s (%d ms)", rid, upstreamEnd.Format(RFC3339Millis), upstreamEnd.Sub(downstreamStart).Milliseconds())
 
 		b = b[:n]
 		if m, err := in.Write(b); err != nil || n != m {
@@ -97,6 +105,9 @@ func newWSHandler(host string, dial dialFunc) http.Handler {
 
 		go cp(out, in)
 		go cp(in, out)
+
+		downstreamEnd := time.Now()
+		log.Printf("[INFO] (DG) %s Done setting up io.Copy goroutines at %s (%d ms)", rid, downstreamEnd.Format(RFC3339Millis), downstreamEnd.Sub(downstreamStart).Milliseconds())
 		err = <-errc
 		if err != nil && err != io.EOF {
 			log.Printf("[INFO] WS error for %s. %s", r.URL, err)
