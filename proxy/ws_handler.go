@@ -55,6 +55,8 @@ func newWSHandler(host string, dial dialFunc) http.Handler {
 			return
 		}
 
+		log.Printf("[INFO] Starting to read stuff %s", r.URL)
+
 		// read the initial response to check whether we get an HTTP/1.1 101 ... response
 		// to determine whether the handshake worked.
 		b := make([]byte, 1024)
